@@ -36,6 +36,9 @@ int main(int argc, char *argv[]) {
         exit(-1);
     }
 
+    /**
+     * Initialize queue and associated variables [lock and condition variable]
+     */
     q = (Q *) malloc(sizeof(Q));
     init_q(q);
     q_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
@@ -43,17 +46,26 @@ int main(int argc, char *argv[]) {
     q_not_empty = (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
     pthread_cond_init(q_not_empty, NULL);
 
+    /**
+     * Create producer thread
+     */
     producerThread = (pthread_t *) malloc(sizeof(pthread_t));
     if (pthread_create(producerThread, NULL, produceLines, (void *) argv[1])) {
         fprintf(stderr, "Error creating producer thread");
         exit(THREAD_CREATION_FAILED);
     }
 
+    /**
+     * Print out header of output
+     */
     char *pad = "-----------------------------------------------";
     printf("%.*s %.*s %.*s %.*s: the line\n", PADDING, "vowels", PADDING, "consonants",
             PADDING, "non-alphabetics", PADDING, "words");
     printf("%.*s %.*s %.*s %.*s\n", PADDING, pad, PADDING, pad, PADDING, pad, PADDING, pad);
 
+    /**
+     * Create consumer thread
+     */
     consumerThread = (pthread_t *) malloc(sizeof(pthread_t));
     if (pthread_create(consumerThread, NULL, consumeLines, NULL)) {
         fprintf(stderr, "Error creating consumer thread");
@@ -83,6 +95,9 @@ void *produceLines(void *arg) {
     ssize_t nread;
     char *queueLine;
 
+    /**
+     * Read each line of a file, and add them to the queue
+     */
     fp = fopen((char *) arg, "r");
     while ((nread = getline(&line, &len, fp)) != -1) {
         queueLine = (char *) malloc(strlen(line)+1);
@@ -93,6 +108,10 @@ void *produceLines(void *arg) {
         pthread_mutex_unlock(q_lock);
     }
 
+    /**
+     * Add EOF to queue to signal to the consumer that the file has been
+     * completely read
+     */
     int endOfFile = EOF;
     pthread_mutex_lock(q_lock);
     enqueue(q, (void *) &endOfFile);
@@ -110,6 +129,10 @@ void *consumeLines(void *arg) {
     char *currentLine = NULL;
     bool productionFinished = false;
 
+    /**
+     * Wait for an item to appear on the queue, then analyze the line until EOF
+     * is found
+     */
     while (!productionFinished) {
         pthread_mutex_lock(q_lock);
         while (size(q) == 0)
@@ -136,6 +159,9 @@ void analyzeLine(char *line) {
     int wordCount = 0;
     char prevChar = ' ';
 
+    /**
+     * Count each type of character in the given string
+     */
     while (line[i] != '\n') {
         if(isdigit(line[i]) || ispunct(line[i])) {
             nonAlphaCount++;
@@ -155,9 +181,16 @@ void analyzeLine(char *line) {
         }
         i++;
     }
+    /**
+     * If the last character is not a space, wordCount must be
+     * incremented since it wouldn't have been conunted
+     */
     if(!isspace(prevChar))
         wordCount++;
 
+    /**
+     * Print the stats of the line
+     */
     printf("%*d %*d %*d %*d: %s", PADDING,
             vowelCount, PADDING, consonantCount, PADDING,
             nonAlphaCount, PADDING, wordCount, line);
