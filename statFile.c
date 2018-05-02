@@ -17,7 +17,7 @@
 void *produceLines(void *arg);
 void *consumeLines(void *arg);
 
-NODE *q;
+Q *q;
 pthread_mutex_t *q_lock;
 pthread_cond_t *q_not_empty;
 pthread_cond_t *q_not_full;
@@ -30,6 +30,13 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Usage: %s <file>\n", argv[0]);
         exit(-1);
     }
+
+    q = (Q *) malloc(sizeof(Q));
+    init_q(q);
+    q_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+    pthread_mutex_init(q_lock, NULL);
+    q_not_empty = (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
+    pthread_cond_init(q_not_empty, NULL);
 
     producerThread = (pthread_t *) malloc(sizeof(pthread_t));
     if (pthread_create(producerThread, NULL, produceLines, (void *) argv[1])) {
@@ -60,7 +67,26 @@ int main(int argc, char *argv[]) {
  * Reads each line of a file and enqueues each line to a shared queue to be consumed
  */
 void *produceLines(void *arg) {
-    printf("Producer created to read %s\n", (char *) arg);
+    FILE *fp;
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t nread;
+
+    fp = fopen((char *) arg, "r");
+    while ((nread = getline(&line, &len, fp)) != -1) {
+        pthread_mutex_lock(q_lock);
+        enqueue(q, (void *) line);
+        pthread_cond_broadcast(q_not_empty);
+        pthread_mutex_unlock(q_lock);
+        printf("Enqueued line: %s", line);
+    }
+
+    int endOfFile = EOF;
+    pthread_mutex_lock(q_lock);
+    enqueue(q, (void *) &endOfFile);
+    pthread_mutex_unlock(q_lock);
+    printf("Production finished\n");
+
     pthread_exit(NULL);
 }
 
@@ -69,6 +95,20 @@ void *produceLines(void *arg) {
  * print the analysis
  */
 void *consumeLines(void *arg) {
-    printf("Consumer created\n");
+    char *currentLine = NULL;
+    bool productionFinished = false;
+
+    while (!productionFinished) {
+        pthread_mutex_lock(q_lock);
+        while (size(q) == 0)
+            pthread_cond_wait(q_not_empty, q_lock);
+        currentLine = (char *) dequeue(q);
+        pthread_mutex_unlock(q_lock);
+        if ((int) currentLine[0] != EOF) {
+            printf("Dequeued line: %s", currentLine);
+        }
+        else
+            productionFinished = true;
+    }
     pthread_exit(NULL);
 }
