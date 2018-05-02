@@ -130,12 +130,25 @@ void analyzeLine(char *line) {
     int consonantCount = 0;
     int nonAlphaCount = 0;
     int wordCount = 0;
+    char prevChar = ' ';
 
     while (line[i] != '\n') {
-        if(isdigit(line[i]) || ispunct(line[i]))
+        if(isdigit(line[i]) || ispunct(line[i])) {
             nonAlphaCount++;
+            prevChar = line[i];
+        }
+        if(isalpha(line[i])) {
+            prevChar = line[i];
+        }
+        else if(isspace(line[i]) && !isspace(prevChar)) {
+            wordCount++;
+            prevChar = line[i];
+        }
         i++;
     }
+    if(!isspace(prevChar))
+        wordCount++;
+
     printf("%*d %*d %*d %*d: %s", PADDING,
             vowelCount, PADDING, consonantCount, PADDING,
             nonAlphaCount, PADDING, wordCount, line);
