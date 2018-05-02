@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-I.
+CFLAGS=-I. -lpthread
 
 stat: statFile.o q.o
-	$(CC) -o statFile statFile.o q.o -I.
+	$(CC) -o statFile statFile.o q.o $(CFLAGS)
