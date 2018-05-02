@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 #include <pthread.h>
 
 #include "q.h"
@@ -19,12 +20,12 @@
 void *produceLines(void *arg);
 void *consumeLines(void *arg);
 
+bool isVowel(char letter);
 void analyzeLine(char *line);
 
 Q *q;
 pthread_mutex_t *q_lock;
 pthread_cond_t *q_not_empty;
-pthread_cond_t *q_not_full;
 
 int main(int argc, char *argv[]) {
     pthread_t *producerThread;
@@ -80,11 +81,14 @@ void *produceLines(void *arg) {
     char *line = NULL;
     size_t len = 0;
     ssize_t nread;
+    char *queueLine;
 
     fp = fopen((char *) arg, "r");
     while ((nread = getline(&line, &len, fp)) != -1) {
+        queueLine = (char *) malloc(strlen(line)+1);
+        strcpy(queueLine, line);
         pthread_mutex_lock(q_lock);
-        enqueue(q, (void *) line);
+        enqueue(q, (void *) queueLine);
         pthread_cond_broadcast(q_not_empty);
         pthread_mutex_unlock(q_lock);
     }
@@ -137,7 +141,12 @@ void analyzeLine(char *line) {
             nonAlphaCount++;
             prevChar = line[i];
         }
-        if(isalpha(line[i])) {
+        else if(isalpha(line[i]) && isVowel(line[i])) {
+            vowelCount++;
+            prevChar = line[i];
+        }
+        else if(isalpha(line[i]) && !isVowel(line[i])) {
+            consonantCount++;
             prevChar = line[i];
         }
         else if(isspace(line[i]) && !isspace(prevChar)) {
@@ -152,4 +161,15 @@ void analyzeLine(char *line) {
     printf("%*d %*d %*d %*d: %s", PADDING,
             vowelCount, PADDING, consonantCount, PADDING,
             nonAlphaCount, PADDING, wordCount, line);
+}
+
+/**
+ * Determines if character is a vowel
+ */
+bool isVowel(char letter) {
+    letter = tolower(letter);
+    if ('a' == letter || 'e' == letter || 'i' == letter || 'o' == letter || 'u' == letter)
+        return true;
+    else
+        return false;
 }
