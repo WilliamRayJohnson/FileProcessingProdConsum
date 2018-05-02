@@ -14,8 +14,12 @@
 #define THREAD_CREATION_FAILED -1
 #define THREAD_JOIN_FAILED -2
 
+#define PADDING 4
+
 void *produceLines(void *arg);
 void *consumeLines(void *arg);
+
+void analyzeLine(char *line);
 
 Q *q;
 pthread_mutex_t *q_lock;
@@ -43,6 +47,11 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Error creating producer thread");
         exit(THREAD_CREATION_FAILED);
     }
+
+    char *pad = "-----------------------------------------------";
+    printf("%.*s %.*s %.*s %.*s: the line\n", PADDING, "vowels", PADDING, "consonants",
+            PADDING, "non-alphabetics", PADDING, "words");
+    printf("%.*s %.*s %.*s %.*s\n", PADDING, pad, PADDING, pad, PADDING, pad, PADDING, pad);
 
     consumerThread = (pthread_t *) malloc(sizeof(pthread_t));
     if (pthread_create(consumerThread, NULL, consumeLines, NULL)) {
@@ -78,14 +87,13 @@ void *produceLines(void *arg) {
         enqueue(q, (void *) line);
         pthread_cond_broadcast(q_not_empty);
         pthread_mutex_unlock(q_lock);
-        printf("Enqueued line: %s", line);
     }
 
     int endOfFile = EOF;
     pthread_mutex_lock(q_lock);
     enqueue(q, (void *) &endOfFile);
+    pthread_cond_broadcast(q_not_empty);
     pthread_mutex_unlock(q_lock);
-    printf("Production finished\n");
 
     pthread_exit(NULL);
 }
@@ -105,10 +113,30 @@ void *consumeLines(void *arg) {
         currentLine = (char *) dequeue(q);
         pthread_mutex_unlock(q_lock);
         if ((int) currentLine[0] != EOF) {
-            printf("Dequeued line: %s", currentLine);
+            analyzeLine(currentLine);
         }
         else
             productionFinished = true;
     }
     pthread_exit(NULL);
+}
+
+/**
+ * Analyzes line and prints analysis
+ */
+void analyzeLine(char *line) {
+    int i = 0;
+    int vowelCount = 0;
+    int consonantCount = 0;
+    int nonAlphaCount = 0;
+    int wordCount = 0;
+
+    while (line[i] != '\n') {
+        if(isdigit(line[i]) || ispunct(line[i]))
+            nonAlphaCount++;
+        i++;
+    }
+    printf("%*d %*d %*d %*d: %s", PADDING,
+            vowelCount, PADDING, consonantCount, PADDING,
+            nonAlphaCount, PADDING, wordCount, line);
 }
