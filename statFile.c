@@ -139,7 +139,7 @@ void *consumeLines(void *arg) {
             pthread_cond_wait(q_not_empty, q_lock);
         currentLine = (char *) dequeue(q);
         pthread_mutex_unlock(q_lock);
-        if ((int) currentLine[0] != EOF) {
+        if (currentLine[0] != EOF && currentLine[0] != '\0') {
             analyzeLine(currentLine);
         }
         else
@@ -162,7 +162,7 @@ void analyzeLine(char *line) {
     /**
      * Count each type of character in the given string
      */
-    while (line[i] != '\n') {
+    while (line[i] != '\0') {
         if(isdigit(line[i]) || ispunct(line[i])) {
             nonAlphaCount++;
             prevChar = line[i];
