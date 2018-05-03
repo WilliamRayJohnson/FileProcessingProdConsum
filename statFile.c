@@ -112,9 +112,10 @@ void *produceLines(void *arg) {
      * Add EOF to queue to signal to the consumer that the file has been
      * completely read
      */
-    int endOfFile = EOF;
+    char *endOfFile = (char *) malloc(sizeof(char));
+    endOfFile[0] = EOF;
     pthread_mutex_lock(q_lock);
-    enqueue(q, (void *) &endOfFile);
+    enqueue(q, (void *) endOfFile);
     pthread_cond_broadcast(q_not_empty);
     pthread_mutex_unlock(q_lock);
 
